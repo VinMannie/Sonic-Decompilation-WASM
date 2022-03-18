@@ -1,8 +1,13 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
+
 #ifdef __EMSCRIPTEN__
 #include <wchar.h>
+
+#if RETRO_PLATFORM == RETRO_ANDROID
+#include <android/log.h>
+
 #endif
 
 extern bool endLine;
@@ -31,6 +36,9 @@ inline void printLog(const char *msg, ...)
             sprintf(pathBuffer, "%s/log.txt", getResourcesPath());
         else
             sprintf(pathBuffer, "log.txt");
+#elif RETRO_PLATFORM == RETRO_ANDROID
+        sprintf(pathBuffer, "%s/log.txt", gamePath);
+        __android_log_print(ANDROID_LOG_INFO, "RSDKv4", "%s", buffer);
 #else
         sprintf(pathBuffer, BASE_PATH "log.txt");
 #endif
@@ -49,7 +57,7 @@ inline void printLog(const ushort *msg)
     if (engineDebugMode) {
         int mPos = 0;
         while (msg[mPos]) {
-            printf("%lc", (wint_t)msg[mPos]);
+            printf("%lc", (ushort)msg[mPos]);
             mPos++;
         }
         if (endLine)
@@ -61,6 +69,9 @@ inline void printLog(const ushort *msg)
             sprintf(pathBuffer, "%s/log.txt", getResourcesPath());
         else
             sprintf(pathBuffer, "log.txt");
+#elif RETRO_PLATFORM == RETRO_ANDROID
+        sprintf(pathBuffer, "%s/log.txt", gamePath);
+        __android_log_print(ANDROID_LOG_INFO, "RSDKv4", "%ls", (wchar_t *)msg);
 #else
         sprintf(pathBuffer, BASE_PATH "log.txt");
 #endif
@@ -92,30 +103,11 @@ enum DevMenuMenus {
 #endif
 };
 
-enum StartMenuMenus {
-    STARTMENU_MAIN = 6,
-    STARTMENU_SAVESEL,
-    STARTMENU_PLAYERSEL,
-    STARTMENU_GAMEOPTS,
-    STARTMENU_TASTAGESEL,
-    STARTMENU_TACONFIRMSEL,
-    STARTMENU_ACHIEVEMENTS,
-    STARTMENU_LEADERBOARDS,
-#if RETRO_USE_MOD_LOADER
-    STARTMENU_MODMENU
-#endif
-};
-
 void initDevMenu();
 void initErrorMessage();
 void processStageSelect();
 
 // Not in original, but the code was, and its cleaner this way
 void setTextMenu(int mode);
-#if !RETRO_USE_ORIGINAL_CODE
-// added due to lack of normal main menu
-void initStartMenu(int mode);
-void processStartMenu();
-#endif
 
 #endif //! DEBUG_H

@@ -3,10 +3,10 @@
 
 #define NATIVEENTITY_COUNT (0x100)
 
-#define ENTITY_COUNT (0x4A0)
+#define ENTITY_COUNT     (0x4A0)
 #define TEMPENTITY_START (ENTITY_COUNT - 0x80)
-#define OBJECT_COUNT (0x100)
-#define TYPEGROUP_COUNT (0x103)
+#define OBJECT_COUNT     (0x100)
+#define TYPEGROUP_COUNT  (0x103)
 
 struct TypeGroupList {
     int entityRefs[ENTITY_COUNT];
@@ -14,10 +14,10 @@ struct TypeGroupList {
 };
 
 struct Entity {
-    int XPos;
-    int YPos;
-    int XVelocity;
-    int YVelocity;
+    int xpos;
+    int ypos;
+    int xvel;
+    int yvel;
     int speed;
     int values[48];
     int state;
@@ -27,9 +27,9 @@ struct Entity {
     int alpha;
     int animationTimer;
     int animationSpeed;
-    int camOffsetX;
-    int lookPos;
-    ushort typeGroup;
+    int lookPosX;
+    int lookPosY;
+    ushort groupID;
     byte type;
     byte propertyValue;
     byte priority;
@@ -54,8 +54,9 @@ struct Entity {
     byte down;
     byte jumpPress;
     byte jumpHold;
-    byte trackScroll;
-    byte flailing[5];
+    byte scrollTracking;
+    // was 3 on S1 release, but bumped up to 5 for S2
+    byte floorSensors[RETRO_REV00 ? 3 : 5];
 };
 
 struct NativeEntityBase {
@@ -70,11 +71,15 @@ struct NativeEntity {
     void (*mainPtr)(void *objPtr);
     int slotID;
     int objectID;
-    byte extra[0x400];
+    void *extra[0x100];
 };
 
 enum ObjectTypes {
-    OBJ_TYPE_BLANKOBJECT = 0 //0 is always blank obj
+    OBJ_TYPE_BLANKOBJECT = 0 // 0 is always blank obj
+};
+
+enum ObjectGroups {
+    GROUP_ALL = 0 // 0 is always "all"
 };
 
 enum ObjectPriority {
@@ -85,14 +90,14 @@ enum ObjectPriority {
     PRIORITY_ACTIVE_XBOUNDS_REMOVE,
     PRIORITY_INACTIVE,
     PRIORITY_ACTIVE_BOUNDS_SMALL,
-    PRIORITY_ACTIVE2
+    PRIORITY_ACTIVE_2P_UNKNOWN
 };
 
-//Native Objects
+// Native Objects
 extern int nativeEntityPos;
 
 extern int activeEntityList[NATIVEENTITY_COUNT];
-extern int objectRemoveFlag[NATIVEENTITY_COUNT];
+extern byte objectRemoveFlag[NATIVEENTITY_COUNT];
 extern NativeEntity objectEntityBank[NATIVEENTITY_COUNT];
 extern int nativeEntityCount;
 
@@ -104,10 +109,10 @@ extern int nativeEntityCountBackupS;
 extern int backupEntityListS[NATIVEENTITY_COUNT];
 extern NativeEntity objectEntityBackupS[NATIVEENTITY_COUNT];
 
-//Game Objects
+// Game Objects
 extern int objectEntityPos;
 extern int curObjectType;
-extern Entity objectEntityList[ENTITY_COUNT];
+extern Entity objectEntityList[ENTITY_COUNT * 2];
 extern int processObjectFlag[ENTITY_COUNT];
 extern TypeGroupList objectTypeGroupList[TYPEGROUP_COUNT];
 
@@ -126,81 +131,58 @@ void ProcessStartupObjects();
 void ProcessObjects();
 void ProcessPausedObjects();
 void ProcessFrozenObjects();
+#if !RETRO_REV00
 void Process2PObjects();
+#endif
 
 void SetObjectTypeName(const char *objectName, int objectID);
 
 extern int playerListPos;
 
-void ProcessPlayerControl(Entity *player);
+void ProcessObjectControl(Entity *player);
 
 void InitNativeObjectSystem();
 NativeEntity *CreateNativeObject(void (*objCreate)(void *objPtr), void (*objMain)(void *objPtr));
 void RemoveNativeObject(NativeEntityBase *NativeEntry);
+void ResetNativeObject(NativeEntityBase *obj, void (*objCreate)(void *objPtr), void (*objMain)(void *objPtr));
 void ProcessNativeObjects();
-inline void BackupNativeObjects() {
-    memcpy(backupEntityList, activeEntityList, sizeof(int) * NATIVEENTITY_COUNT);
-    memcpy(objectEntityBackup, objectEntityBank, sizeof(NativeEntity) * NATIVEENTITY_COUNT);
+inline void BackupNativeObjects()
+{
+    memcpy(backupEntityList, activeEntityList, sizeof(activeEntityList));
+    memcpy(objectEntityBackup, objectEntityBank, sizeof(objectEntityBank));
     nativeEntityCountBackup = nativeEntityCount;
 }
-inline void BackupNativeObjectsSettings() {
-    memcpy(backupEntityListS, activeEntityList, sizeof(int) * NATIVEENTITY_COUNT);
-    memcpy(objectEntityBackupS, objectEntityBank, sizeof(NativeEntity) * NATIVEENTITY_COUNT);
+inline void BackupNativeObjectsSettings()
+{
+    memcpy(backupEntityListS, activeEntityList, sizeof(activeEntityList));
+    memcpy(objectEntityBackupS, objectEntityBank, sizeof(objectEntityBank));
     nativeEntityCountBackupS = nativeEntityCount;
 }
-inline void RestoreNativeObjects()
-{
-    memcpy(activeEntityList, backupEntityList, sizeof(int) * NATIVEENTITY_COUNT);
-    nativeEntityCount = nativeEntityCountBackup;
-    memcpy(objectEntityBank, objectEntityBackup, sizeof(NativeEntity) * NATIVEENTITY_COUNT);
-
-    //ptr = CreateNativeObject(FadeScreen_Create, FadeScreen_Main);
-    //ptr + 16 = 0;
-}
-inline void RestoreNativeObjectsNoFade()
-{
-    memcpy(activeEntityList, backupEntityList, sizeof(int) * NATIVEENTITY_COUNT);
-    nativeEntityCount = nativeEntityCountBackup;
-    memcpy(objectEntityBank, objectEntityBackup, sizeof(NativeEntity) * NATIVEENTITY_COUNT);
-}
-inline void RestoreNativeObjectsSettings()
-{
-    memcpy(activeEntityList, backupEntityListS, sizeof(int) * NATIVEENTITY_COUNT);
-    nativeEntityCount = nativeEntityCountBackupS;
-    memcpy(objectEntityBank, objectEntityBackupS, sizeof(NativeEntity) * NATIVEENTITY_COUNT);
-}
-inline void GetNativeObject(NativeEntity *obj, void (*newCreate)(void *objPtr), void (*newMain)(void *objPtr))
-{
-    int slotID = obj->slotID;
-    int objID  = obj->objectID;
-    memset(&objectEntityBank[slotID], 0, sizeof(NativeEntity));
-    obj->slotID   = slotID;
-    obj->mainPtr     = newMain;
-    obj->createPtr   = newCreate;
-    obj->objectID = objID;
-    if (obj->createPtr)
-        obj->createPtr(obj);
-}
+void RestoreNativeObjects();
+void RestoreNativeObjectsNoFade();
+void RestoreNativeObjectsSettings();
 inline NativeEntity *GetNativeObject(uint objID)
 {
-    if (objID > 0xFF)
+    if (objID >= NATIVEENTITY_COUNT)
         return nullptr;
     else
         return &objectEntityBank[objID];
 }
 
-//Custom, used for cleaning purposes
+// Custom, used for cleaning purposes
 inline void RemoveNativeObjectType(void (*objCreate)(void *objPtr), void (*objMain)(void *objPtr))
 {
     for (int i = nativeEntityCount - 1; i >= 0; --i) {
-        if (objectEntityBank[i].createPtr == objCreate && objectEntityBank[i].mainPtr == objMain) {
-            RemoveNativeObject((NativeEntityBase *)&objectEntityBank[i]);
+        NativeEntity *entity = &objectEntityBank[activeEntityList[i]];
+        if (entity->createPtr == objCreate && entity->mainPtr == objMain) {
+            RemoveNativeObject((NativeEntityBase *)entity);
         }
     }
 }
-inline void ClearNativeObjects() {
+inline void ClearNativeObjects()
+{
     nativeEntityCount = 0;
-    memset(objectEntityBank, 0, sizeof(NativeEntity) * NATIVEENTITY_COUNT);
+    memset(objectEntityBank, 0, sizeof(objectEntityBank));
 }
 
 #endif // !OBJECT_H
