@@ -2,17 +2,17 @@
 #define DRAWING3D_H
 
 #define VERTEXBUFFER_SIZE (0x1000)
-#define FACEBUFFER_SIZE (0x400)
+#define FACEBUFFER_SIZE   (0x400)
 
 enum FaceFlags {
-    FACE_FLAG_TEXTURED_3D = 0,
-    FACE_FLAG_TEXTURED_2D = 1,
-    FACE_FLAG_COLOURED_3D = 2,
-    FACE_FLAG_COLOURED_2D = 3,
-    FACE_FLAG_FADED       = 4,
-    FACE_FLAG_TEXTURED_C  = 5,
-    FACE_FLAG_TEXTURED_D  = 6,
-    FACE_FLAG_3DSPRITE    = 7
+    FACE_FLAG_TEXTURED_3D      = 0,
+    FACE_FLAG_TEXTURED_2D      = 1,
+    FACE_FLAG_COLOURED_3D      = 2,
+    FACE_FLAG_COLOURED_2D      = 3,
+    FACE_FLAG_FADED            = 4,
+    FACE_FLAG_TEXTURED_C       = 5,
+    FACE_FLAG_TEXTURED_C_BLEND = 6,
+    FACE_FLAG_3DSPRITE         = 7
 };
 
 enum MatrixTypes {
@@ -81,7 +81,9 @@ void matrixRotateX(Matrix *matrix, int rotationX);
 void matrixRotateY(Matrix *matrix, int rotationY);
 void matrixRotateZ(Matrix *matrix, int rotationZ);
 void matrixRotateXYZ(Matrix *matrix, short rotationX, short rotationY, short rotationZ);
+#if !RETRO_REV00
 void matrixInverse(Matrix *matrix);
+#endif
 void transformVertexBuffer();
 void transformVertices(Matrix *matrix, int startIndex, int endIndex);
 void sort3DDrawList();
